@@ -6,17 +6,21 @@ import { BulkCreateUsersDto } from './dto/bulk-create-users.dto';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { BulkUpdateUsersRoleDto } from './dto/bulk-update-users-role.dto';
+import { ExpectEventDto } from './dto/expect-event.dto';
 
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
+import { Event } from 'src/event/entities/event.entity';
 import { UserRole } from './enums/user.enum';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User)
-    private readonly userRepository: Repository<User>
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(Event)
+    private readonly eventRepository: Repository<Event>
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -55,12 +59,22 @@ export class UserService {
   findAll(query: PaginationQueryDto) {
     return this.userRepository.find({
       skip: query.offset,
-      take: query.limit
+      take: query.limit,
+      relations: {
+        expectedEvents: true
+      }
     })
   }
 
   async findOne(uuid: string) {
-    const user = await this.userRepository.findOne({ where: {UUID: uuid} })
+    const user = await this.userRepository.findOne({
+      where: {
+        UUID: uuid
+      },
+      relations: {
+        expectedEvents: true
+      } 
+    })
     if (!user) {
       throw new NotFoundException(`User with UUID ${uuid} not found.`)
     }
@@ -115,5 +129,36 @@ export class UserService {
   async remove(uuid: string) {
     const user = await this.findOne(uuid)
     return this.userRepository.remove(user)
+  }
+
+  async expectEvent(expectEventDto: ExpectEventDto) {
+    const user = await this.userRepository.findOne({
+      where: {
+        UUID: expectEventDto.userUUID
+      },
+      relations: {
+        expectedEvents: true
+      }
+    })
+    if (!user) {
+      throw new NotFoundException(`User with UUID ${expectEventDto.userUUID} not found.`)
+    }
+
+    const event = await this.eventRepository.findOne({
+      where: {
+        UUID: expectEventDto.eventUUID
+      },
+      relations: {
+        expectedAttendees: true
+      }
+    })
+    if (!event) {
+      throw new NotFoundException(`Event with UUID ${expectEventDto.eventUUID} not found.`)
+    }
+
+    user.expectedEvents.push(event)
+    await this.userRepository.save(user)
+    event.expectedAttendees.push(user)
+    await this.eventRepository.save(event)
   }
 }

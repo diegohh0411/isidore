@@ -1,11 +1,13 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { UserService } from './user.service';
+
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { BulkCreateUsersDto } from './dto/bulk-create-users.dto';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { BulkUpdateUsersRoleDto } from './dto/bulk-update-users-role.dto';
+import { ExpectEventDto } from './dto/expect-event.dto';
 
 @Controller('user')
 export class UserController {
@@ -31,6 +33,11 @@ export class UserController {
   @Post('bulk')
   bulkCreate(@Body() bulkCreateUsersDto: BulkCreateUsersDto) {
     return this.userService.bulkCreate(bulkCreateUsersDto)
+  }
+
+  @Post('expectEvent')
+  expectEvent(@Body() expectEventDto: ExpectEventDto) {
+    return this.userService.expectEvent(expectEventDto)
   }
 
   // PATCH

@@ -1,5 +1,7 @@
-import { Column, Entity, PrimaryColumn } from "typeorm";
+import { Column, Entity, ManyToMany, PrimaryColumn } from "typeorm";
 import { UserRole } from "../enums/user.enum";
+
+import { Event } from "src/event/entities/event.entity";
 
 @Entity()
 export class User {
@@ -20,4 +22,10 @@ export class User {
         enum: UserRole
     })
     role: UserRole
+
+    @ManyToMany(
+        type => Event,
+        event => event.expectedAttendees
+    )
+    expectedEvents: Event[]
 }

@@ -2,33 +2,57 @@ import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/commo
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { BulkCreateUsersDto } from './dto/bulk-create-users.dto';
+import { PaginationQueryDto } from './dto/pagination-query.dto';
+import { UpdateUserRoleDto } from './dto/update-user-role.dto';
+import { BulkUpdateUsersRoleDto } from './dto/bulk-update-users-role.dto';
 
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
+  // GET
+  @Get()
+  findAll(@Body() query: PaginationQueryDto) {
+    return this.userService.findAll(query);
+  }
+
+  @Get(':uuid')
+  findOne(@Param('uuid') uuid: string) {
+    return this.userService.findOne(uuid);
+  }
+
+  // POST
   @Post()
   create(@Body() createUserDto: CreateUserDto) {
     return this.userService.create(createUserDto);
   }
 
-  @Get()
-  findAll() {
-    return this.userService.findAll();
+  @Post('bulk')
+  bulkCreate(@Body() bulkCreateUsersDto: BulkCreateUsersDto) {
+    return this.userService.bulkCreate(bulkCreateUsersDto)
   }
 
-  @Get(':email')
-  findOne(@Param('email') email: string) {
-    return this.userService.findOne(email);
+  // PATCH
+  // First goes the 'role' endpoint, to give it priority over any :uuid called 'role'.
+  @Patch('role')
+  updateRole(@Body() updateUserRoleDto: UpdateUserRoleDto) {
+    return this.userService.updateUserRole(updateUserRoleDto)
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.userService.update(+id, updateUserDto);
+  @Patch(':uuid')
+  update(@Param('uuid') uuid: string, @Body() updateUserDto: UpdateUserDto) {
+    return this.userService.update(uuid, updateUserDto);
   }
 
-  @Delete(':email')
-  remove(@Param('email') email: string) {
-    return this.userService.remove(email);
+  @Patch('bulk/role')
+  bulkUpdateRole(@Body() bulkUpdateUsersRoleDto: BulkUpdateUsersRoleDto) {
+    return this.userService.bulkUpdateUsersRole(bulkUpdateUsersRoleDto)
+  }
+
+  // DELETE
+  @Delete(':uuid')
+  remove(@Param('uuid') uuid: string) {
+    return this.userService.remove(uuid);
   }
 }

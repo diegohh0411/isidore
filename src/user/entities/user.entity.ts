@@ -1,9 +1,10 @@
-import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, PrimaryColumn } from "typeorm";
+import { UserRole } from "../enums/user.enum";
 
 @Entity()
 export class User {
-    @PrimaryGeneratedColumn()
-    id: number
+    @PrimaryColumn({ nullable: false })
+    UUID: string
 
     @Column()
     email: string
@@ -13,4 +14,10 @@ export class User {
 
     @Column('json', { nullable: true })
     last_name: string
+
+    @Column({
+        type: 'enum',
+        enum: UserRole
+    })
+    role: UserRole
 }

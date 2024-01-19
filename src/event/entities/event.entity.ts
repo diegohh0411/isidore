@@ -15,4 +15,11 @@ export class Event {
         user => user.expectedEvents 
     )
     expectedAttendees: User[]
+
+    @JoinTable()
+    @ManyToMany(
+        type => User,
+        user => user.speakingAt
+    )
+    speakers: User[]
 }

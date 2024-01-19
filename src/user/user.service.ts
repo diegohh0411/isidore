@@ -1,12 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { BulkCreateUsersDto } from './dto/bulk-create-users.dto';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
-import { UpdateUserRoleDto } from './dto/update-user-role.dto';
-import { BulkUpdateUsersRoleDto } from './dto/bulk-update-users-role.dto';
-import { ExpectEventDto } from './dto/expect-event.dto';
+import { BulkUpdateUsersDto } from './dto/bulk-update-users.dto';
 
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -22,18 +18,6 @@ export class UserService {
     @InjectRepository(Event)
     private readonly eventRepository: Repository<Event>
   ) {}
-
-  async create(createUserDto: CreateUserDto) {
-    const existingUser = await this.userRepository.findOne({ where: {email: createUserDto.email} })
-    if (existingUser) {
-      throw new BadRequestException(`User with email ${createUserDto.email} already exists.`)
-    }
-
-    const user = this.userRepository.create(createUserDto)
-    user.UUID = crypto.randomUUID()
-    user.role = UserRole.attendee
-    return this.userRepository.save(user)
-  }
 
   async bulkCreate(bulkCreateUsersDto: BulkCreateUsersDto) {
     const alreadyExistingAccounts = []
@@ -59,10 +43,7 @@ export class UserService {
   findAll(query: PaginationQueryDto) {
     return this.userRepository.find({
       skip: query.offset,
-      take: query.limit,
-      relations: {
-        expectedEvents: true
-      }
+      take: query.limit
     })
   }
 
@@ -72,7 +53,8 @@ export class UserService {
         UUID: uuid
       },
       relations: {
-        expectedEvents: true
+        expectedEvents: true,
+        speakingAt: true
       } 
     })
     if (!user) {
@@ -81,49 +63,25 @@ export class UserService {
     return user
   }
 
-  async update(uuid: string, updateUserDto: UpdateUserDto) {
-    const user = await this.userRepository.preload({
-      UUID: uuid,
-      ...updateUserDto
-    })
-    if (!user) {
-      throw new NotFoundException(`User with UUID ${uuid} not found.`)
-    }
-    return await this.userRepository.save(user)
-  }
+  async bulkUpdate(bulkUpdateUsersDto: BulkUpdateUsersDto) {
+    const unupdateableAccounts = []
 
-  async updateUserRole(updateUserRoleDto: UpdateUserRoleDto) {
-    if (!Object.values(UserRole).includes(updateUserRoleDto.role)) {
-      throw new BadRequestException(`Role property should correspond to one of these: ${Object.values(UserRole).join(', ')}.`)
-    }
-    const user = await this.userRepository.preload({
-      UUID: updateUserRoleDto.uuid,
-      role: updateUserRoleDto.role
-    })
-    if (!user) {
-      throw new NotFoundException(`User with UUID ${updateUserRoleDto.uuid} not found.`)
-    }
-    return await this.userRepository.save(user)
-  }
+    for (let i = 0; i < bulkUpdateUsersDto.users.length; i++) {
+      const user = bulkUpdateUsersDto.users[i]
 
-  async bulkUpdateUsersRole(bulkUpdateUsersRoleDto: BulkUpdateUsersRoleDto) {
-    const accountsThatDidntExistOrCouldntBeUpdated = []
+      const updatedUser = await this.userRepository.preload({
+        UUID: user.UUID,
+        ...user
+      })
 
-    for (let i = 0; i < bulkUpdateUsersRoleDto.users.length; i++) {
-      const user = bulkUpdateUsersRoleDto.users[i]
-      
-      try {
-        const updatedUser = await this.userRepository.preload({
-          UUID: user.uuid,
-          role: user.role
-        })
+      if (!updatedUser) {
+        unupdateableAccounts.push(user.UUID)
+      } else {
         await this.userRepository.save(updatedUser)
-      } catch(e) {
-        accountsThatDidntExistOrCouldntBeUpdated.push(user.uuid)
       }
     }
 
-    return `All accounts that could be updated, were updated.` + (accountsThatDidntExistOrCouldntBeUpdated.length ? ` These accounts didn't exist or couldn't be updated: ${accountsThatDidntExistOrCouldntBeUpdated.join(', ')}.` : '')
+    return `All accounts that could have been updated, were updated.` + (unupdateableAccounts.length ? ` These accounts couldn't be updated, either because they didn't exist or for some other reason: ${unupdateableAccounts.join(', ')}.` : '')
   }
 
   async remove(uuid: string) {
@@ -131,34 +89,67 @@ export class UserService {
     return this.userRepository.remove(user)
   }
 
-  async expectEvent(expectEventDto: ExpectEventDto) {
+  async expectEvent(userUUID, eventUUID) {
     const user = await this.userRepository.findOne({
       where: {
-        UUID: expectEventDto.userUUID
+        UUID: userUUID
       },
       relations: {
         expectedEvents: true
       }
     })
     if (!user) {
-      throw new NotFoundException(`User with UUID ${expectEventDto.userUUID} not found.`)
+      throw new NotFoundException(`User with UUID ${userUUID} not found.`)
     }
 
     const event = await this.eventRepository.findOne({
       where: {
-        UUID: expectEventDto.eventUUID
+        UUID: eventUUID
       },
       relations: {
         expectedAttendees: true
       }
     })
     if (!event) {
-      throw new NotFoundException(`Event with UUID ${expectEventDto.eventUUID} not found.`)
+      throw new NotFoundException(`Event with UUID ${eventUUID} not found.`)
     }
 
     user.expectedEvents.push(event)
     await this.userRepository.save(user)
     event.expectedAttendees.push(user)
+    await this.eventRepository.save(event)
+  }
+
+  async speakingAt(userUUID, eventUUID) {
+    const user = await this.userRepository.findOne({
+      where: {
+        UUID: userUUID
+      },
+      relations: {
+        speakingAt: true
+      }
+    })
+    if (!user) {
+      throw new NotFoundException(`User with UUID ${userUUID} not found.`)
+    } else if (user.role !== UserRole.speaker) {
+      throw new BadRequestException(`User with UUID ${userUUID} must have a role of ${UserRole.speaker}`)
+    }
+
+    const event = await this.eventRepository.findOne({
+      where: {
+        UUID: eventUUID
+      },
+      relations: {
+        speakers: true
+      }
+    })
+    if (!event) {
+      throw new NotFoundException(`Event with UUID ${eventUUID} not found.`)
+    }
+
+    user.speakingAt.push(event)
+    await this.userRepository.save(user)
+    event.speakers.push(user)
     await this.eventRepository.save(event)
   }
 }

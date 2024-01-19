@@ -28,4 +28,10 @@ export class User {
         event => event.expectedAttendees
     )
     expectedEvents: Event[]
+
+    @ManyToMany(
+        type => Event,
+        event => event.speakers
+    )
+    speakingAt: Event[]
 }

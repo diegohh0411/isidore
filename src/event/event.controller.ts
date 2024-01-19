@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
 import { EventService } from './event.service';
 
-import { CreateEventDto } from './dto/create-event.dto';
+import { BulkCreateEventsDto } from './dto/bulk-create-events.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
 
@@ -10,8 +10,8 @@ export class EventController {
   constructor(private readonly eventService: EventService) {}
 
   @Post()
-  create(@Body() createEventDto: CreateEventDto) {
-    return this.eventService.create(createEventDto);
+  bulkCreate(@Body() bulkCreateEventsDto: BulkCreateEventsDto) {
+    return this.eventService.bulkCreate(bulkCreateEventsDto);
   }
 
   @Get()

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { CreateEventDto } from './dto/create-event.dto';
+import { BulkCreateEventsDto } from './dto/bulk-create-events.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
 
@@ -17,15 +17,24 @@ export class EventService {
     private readonly eventRepository: Repository<Event>
   ) {}
 
-  async create(createEventDto: CreateEventDto) {
-    const existingEvent = await this.eventRepository.findOne({ where: {title: createEventDto.title} })
-    if (existingEvent) {
-      throw new BadRequestException(`Event with title ${createEventDto.title} already exists.`)
+  async bulkCreate(bulkCreateEventsDto: BulkCreateEventsDto) {
+    const alreadyExistingEvents = []
+
+    for (let i = 0; i < bulkCreateEventsDto.events.length; i++) {
+      const event = bulkCreateEventsDto.events[i]
+
+      const existingEvent = await this.eventRepository.findOne({ where: { title: event.title }})
+
+      if (existingEvent) {
+        alreadyExistingEvents.push(event.title)
+      } else {
+        const newEvent = this.eventRepository.create(event)
+        newEvent.UUID = crypto.randomUUID()
+        await this.eventRepository.save(newEvent)
+      }
     }
 
-    const event = this.eventRepository.create(createEventDto)
-    event.UUID = crypto.randomUUID()
-    return this.eventRepository.save(event)
+    return `All events that didn't exist have been created.` + (alreadyExistingEvents.length ? ` These events already existed: ${alreadyExistingEvents.join(', ')}.` : '')
   }
 
   findAll(query: PaginationQueryDto) {
@@ -33,7 +42,8 @@ export class EventService {
       skip: query.offset,
       take: query.limit,
       relations: {
-        expectedAttendees: true
+        expectedAttendees: true,
+        speakers: true
       }
     })
   }

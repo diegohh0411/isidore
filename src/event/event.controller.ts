@@ -2,35 +2,39 @@ import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/commo
 import { EventService } from './event.service';
 
 import { BulkCreateEventsDto } from './dto/bulk-create-events.dto';
-import { UpdateEventDto } from './dto/update-event.dto';
-import { PaginationQueryDto } from './dto/pagination-query.dto';
+import { BulkUpdateEventsDto } from './dto/bulk-update-events.dto';
+import { PaginationQueryDto } from 'src/common/dto/pagionation-query.dto';
 
 @Controller('event')
 export class EventController {
   constructor(private readonly eventService: EventService) {}
 
-  @Post()
-  bulkCreate(@Body() bulkCreateEventsDto: BulkCreateEventsDto) {
-    return this.eventService.bulkCreate(bulkCreateEventsDto);
-  }
-
+  // GET
   @Get()
   findAll(@Body() query: PaginationQueryDto) {
     return this.eventService.findAll(query);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.eventService.findOne(+id);
+  @Get(':uuid')
+  findOne(@Param('uuid') uuid: string) {
+    return this.eventService.findOne(uuid)
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateEventDto: UpdateEventDto) {
-    return this.eventService.update(+id, updateEventDto);
+  // POST
+  @Post()
+  bulkCreate(@Body() bulkCreateEventsDto: BulkCreateEventsDto) {
+    return this.eventService.bulkCreate(bulkCreateEventsDto);
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.eventService.remove(+id);
+  // PATCH
+  @Patch()
+  bulkUpdate(@Body() bulkUpdateEventsDto: BulkUpdateEventsDto) {
+    return this.eventService.bulkUpdate(bulkUpdateEventsDto);
+  }
+
+  // DELETE
+  @Delete(':uuid')
+  remove(@Param('uuid') uuid: string) {
+    return this.eventService.remove(uuid);
   }
 }

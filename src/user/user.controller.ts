@@ -3,7 +3,7 @@ import { UserService } from './user.service';
 
 import { BulkCreateUsersDto } from './dto/bulk-create-users.dto';
 import { BulkUpdateUsersDto } from './dto/bulk-update-users.dto';
-import { PaginationQueryDto } from './dto/pagination-query.dto';
+import { PaginationQueryDto } from 'src/common/dto/pagionation-query.dto';
 
 @Controller('user')
 export class UserController {
@@ -37,7 +37,7 @@ export class UserController {
   }
 
   // PATCH
-  @Patch('')
+  @Patch()
   bulkUpdate(@Body() bulkUpdateUsersDto: BulkUpdateUsersDto) {
     return this.userService.bulkUpdate(bulkUpdateUsersDto)
   }

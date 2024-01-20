@@ -1,8 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { BulkCreateUsersDto } from './dto/bulk-create-users.dto';
-import { PaginationQueryDto } from './dto/pagination-query.dto';
 import { BulkUpdateUsersDto } from './dto/bulk-update-users.dto';
+import { PaginationQueryDto } from 'src/common/dto/pagionation-query.dto';
 
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';

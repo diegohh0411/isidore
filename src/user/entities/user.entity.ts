@@ -1,8 +1,9 @@
-import { Column, Entity, ManyToMany, PrimaryColumn } from "typeorm";
+import { Column, Entity, ManyToMany, PrimaryColumn, Index } from "typeorm";
 import { UserRole } from "../enums/user.enum";
 
 import { Event } from "src/event/entities/event.entity";
 
+@Index(['email', 'first_name', 'last_name'])
 @Entity()
 export class User {
     @PrimaryColumn({ nullable: false })
@@ -14,7 +15,7 @@ export class User {
     @Column()
     first_name: string
 
-    @Column('json', { nullable: true })
+    @Column()
     last_name: string
 
     @Column({

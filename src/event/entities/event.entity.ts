@@ -1,7 +1,6 @@
-import { Column, Entity, JoinTable, ManyToMany, PrimaryColumn, Index } from "typeorm";
+import { Column, Entity, JoinTable, ManyToMany, PrimaryColumn } from "typeorm";
 import { User } from "src/user/entities/user.entity";
 
-@Index(['title', 'description', 'startsAt'])
 @Entity()
 export class Event {
     @PrimaryColumn({ nullable: false })

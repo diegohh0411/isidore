@@ -47,4 +47,14 @@ export class UserController {
   remove(@Param('uuid') uuid: string) {
     return this.userService.remove(uuid);
   }
+
+  @Delete(':userUUID/expectEvent/:eventUUID')
+  deleteExpectEvent(@Param('userUUID') userUUID, @Param('eventUUID') eventUUID) {
+    return this.userService.deleteExpectEvent(userUUID, eventUUID)
+  }
+
+  @Delete(':userUUID/speakingAt/:eventUUID')
+  deleteSpeakingAt(@Param('userUUID') userUUID, @Param('eventUUID') eventUUID) {
+    return this.userService.deleteSpeakingAt(userUUID, eventUUID)
+  }
 }

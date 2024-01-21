@@ -1,10 +1,10 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 
 import { BulkCreateUsersDto } from './dto/bulk-create-users.dto';
 import { BulkUpdateUsersDto } from './dto/bulk-update-users.dto';
 import { PaginationQueryDto } from 'src/common/dto/pagionation-query.dto';
 
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
 import { Event } from 'src/event/entities/event.entity';
@@ -16,7 +16,9 @@ export class UserService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     @InjectRepository(Event)
-    private readonly eventRepository: Repository<Event>
+    private readonly eventRepository: Repository<Event>,
+
+    private readonly dataSource: DataSource
   ) {}
 
   async bulkCreate(bulkCreateUsersDto: BulkCreateUsersDto) {
@@ -114,10 +116,84 @@ export class UserService {
       throw new NotFoundException(`Event with UUID ${eventUUID} not found.`)
     }
 
-    user.expectedEvents.push(event)
-    await this.userRepository.save(user)
-    event.expectedAttendees.push(user)
-    await this.eventRepository.save(event)
+    const queryRunner = this.dataSource.createQueryRunner()
+    await queryRunner.connect()
+    await queryRunner.startTransaction()
+
+    try {
+      user.expectedEvents.push(event)
+      event.expectedAttendees.push(user)
+      
+      await queryRunner.manager.save(user)
+      await queryRunner.manager.save(event)
+      await queryRunner.commitTransaction()
+    } catch (err) {
+      await queryRunner.rollbackTransaction()
+      throw new InternalServerErrorException()
+    } finally {
+      await queryRunner.release()
+    }
+
+    delete event.expectedAttendees
+    return user
+  }
+
+  async deleteExpectEvent(userUUID, eventUUID) {
+    const user = await this.userRepository.findOne({
+      where: {
+        UUID: userUUID
+      },
+      relations: {
+        expectedEvents: true
+      }
+    })
+    if (!user) {
+      throw new NotFoundException(`User with UUID ${userUUID} not found.`)
+    }
+
+    const event = await this.eventRepository.findOne({
+      where: {
+        UUID: eventUUID
+      },
+      relations: {
+        expectedAttendees: true
+      }
+    })
+    if (!event) {
+      throw new NotFoundException(`Event with UUID ${eventUUID} not found.`)
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner()
+    await queryRunner.connect()
+    await queryRunner.startTransaction()
+
+    try {
+      const eventIndex = user.expectedEvents.findIndex(eE => {
+        return eE.UUID === event.UUID
+      })
+      if (eventIndex !== -1) {
+        user.expectedEvents.splice(eventIndex, 1)
+      }
+
+      const userIndex = event.expectedAttendees.findIndex(eA => {
+        return eA.UUID === user.UUID 
+      })
+      if (userIndex !== -1) {
+        event.expectedAttendees.splice(userIndex, 1)
+      }
+
+      await queryRunner.manager.save(user)
+      await queryRunner.manager.save(event)
+      await queryRunner.commitTransaction()
+    } catch (err) {
+      await queryRunner.rollbackTransaction()
+      throw new InternalServerErrorException()
+    } finally {
+      await queryRunner.release()
+    }
+
+    delete user.expectedEvents
+    return user
   }
 
   async speakingAt(userUUID, eventUUID) {
@@ -147,9 +223,85 @@ export class UserService {
       throw new NotFoundException(`Event with UUID ${eventUUID} not found.`)
     }
 
-    user.speakingAt.push(event)
-    await this.userRepository.save(user)
-    event.speakers.push(user)
-    await this.eventRepository.save(event)
+    const queryRunner = this.dataSource.createQueryRunner()
+    await queryRunner.connect()
+    await queryRunner.startTransaction()
+
+    try {
+      user.speakingAt.push(event)
+      await queryRunner.manager.save(user)
+      event.speakers.push(user)
+      await queryRunner.manager.save(event)
+
+      await queryRunner.commitTransaction()
+    } catch (err) {
+      await queryRunner.rollbackTransaction()
+      throw new InternalServerErrorException()
+    } finally {
+      await queryRunner.release()
+    }
+
+    delete event.speakers
+    return user
+  }
+
+  async deleteSpeakingAt(userUUID, eventUUID) {
+    const user = await this.userRepository.findOne({
+      where: {
+        UUID: userUUID
+      },
+      relations: {
+        speakingAt: true
+      }
+    })
+    if (!user) {
+      throw new NotFoundException(`User with UUID ${userUUID} not found.`)
+    } else if (user.role !== UserRole.speaker) {
+      throw new BadRequestException(`User with UUID ${userUUID} must have a role of ${UserRole.speaker}`)
+    }
+
+    const event = await this.eventRepository.findOne({
+      where: {
+        UUID: eventUUID
+      },
+      relations: {
+        speakers: true
+      }
+    })
+    if (!event) {
+      throw new NotFoundException(`Event with UUID ${eventUUID} not found.`)
+    }
+
+    const queryRunner = this.dataSource.createQueryRunner()
+    await queryRunner.connect()
+    await queryRunner.startTransaction()
+
+    try {
+      const eventIndex = user.speakingAt.findIndex(event => {
+        return event.UUID === event.UUID
+      })
+      if (eventIndex !== -1) {
+        user.speakingAt.splice(eventIndex, 1)
+      }
+
+      const userIndex = event.speakers.findIndex(speaker => {
+        return speaker.UUID === user.UUID
+      })
+      if (userIndex !== -1) {
+        event.speakers.splice(userIndex, 1)
+      }
+
+      await queryRunner.manager.save(user)
+      await queryRunner.manager.save(event)
+      await queryRunner.commitTransaction()
+    } catch (err) {
+      await queryRunner.rollbackTransaction()
+      throw new InternalServerErrorException()
+    } finally {
+      await queryRunner.release()
+    }
+
+    delete event.speakers
+    return user
   }
 }

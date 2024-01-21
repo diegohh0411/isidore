@@ -31,4 +31,7 @@ export class Event {
 
     @Column({ type: 'timestamp with time zone'})
     endsAt: Date
+
+    @Column({ nullable: true })
+    location: string
 }

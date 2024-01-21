@@ -13,4 +13,8 @@ export class CreateEventDto {
     @IsOptional()
     @IsString()
     description: string
+
+    @IsOptional()
+    @IsString()
+    location: string
 }
